@@ -6,7 +6,7 @@ c = 343; % 声速
 z = 0.5; % 传播距离，假设值
 
 % 2. 计算时间范围
-t = -0.005:0.000001:0.005; % 时间范围，步长需足够小以准确表示波形
+t = -0.01:0.00001:0.01; % 时间范围，步长需足够小以准确表示波形
 w = exp(-t.^2 / (2*sigma^2)).*sin(2*pi*f_R*t);
 
 % 绘制发射脉冲波形w(t)
@@ -53,26 +53,25 @@ for i = 1:length(alpha)
         % 处理非零入射角
         % 计算w_squared
         w_squared = (c^2 * (t - 2*z/c).^2) / (a^2 * sin(angle)^2);
+       
+        % 初始化 h_R 为零
+        h_R(:,i) = zeros(size(t));
 
-        % 限制w_squared的最大值，防止其过大
-        w_squared(w_squared > 1) = 1;
+        % 计算有效时间范围
+        valid_time_range = (t >= (2*z - a*sin(angle))/c) & (t <= (2*z + a*sin(angle))/c);
 
-        % 计算h_R（接收孔径脉冲响应）
-        h_R(:,i) = (2*c*cos(angle) / (pi*a*sin(angle))) .* sqrt(1 - w_squared);
-
-        % 限制h_R的有效范围
-        h_R(t < (2*z - a*sin(angle))/c | t > (2*z + a*sin(angle))/c, i) = 0;
+        % 仅在有效时间范围内计算h_R
+        h_R(valid_time_range, i) = (2*c*cos(angle) / (pi*a*sin(angle))) .* sqrt(1 - w_squared(valid_time_range));
 
         % 使用h_R计算T/R对脉冲响应h_T_R
-        h_T_R(:,i) = conv(w, h_R(:,i), 'same');
+        h_T_R(:,i) = conv(h_R(:,i), h_R(:,i), 'same');
     end
     
     % 计算回波波形r(t)
     r(:,i) = conv(w, h_T_R(:,i), 'same'); % 使用卷积计算回波波形
-    
-    % 归一化回波波形 r(t)，确保幅值不超过1
 end
 
+% 归一化回波波形 r(t)，确保幅值不超过1
 max_r = max(abs(r), [], 'all'); % 找到所有回波的最大幅度
 r = r / max_r; % 归一化所有回波波形，使得幅值不超过1
 
